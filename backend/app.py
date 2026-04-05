@@ -34,6 +34,11 @@ app.add_middleware(
 USER_RESUMES = {}
 MAX_RESUME_SIZE = 10 * 1024 * 1024
 
+class MatchRequest(BaseModel):
+    user_id: str
+    desc: str
+
+
 # --- Routes ---
 @app.get("/")
 def home():
@@ -97,12 +102,6 @@ async def upload_resume(file: UploadFile = File(...)):
         "filename": file.filename,
         "preview": resume_text[:500] + "..." if len(resume_text) > 500 else resume_text
         }
-    
-
-
-class MatchRequest(BaseModel):
-    user_id: str
-    desc: str
 
 @app.post("/api/match")
 async def match_jobs(req: MatchRequest
@@ -111,8 +110,3 @@ async def match_jobs(req: MatchRequest
     resume_embedding = USER_RESUMES[req.user_id]["embedding"]
     score = cosine_similarity(desc_embedding, resume_embedding)
     return {"match_score": float(score)}
-
-@app.get("/api/get_resume")
-async def resume_get(user_id: str) -> str:
-    saved_resume = USER_RESUMES[user_id]["text"]
-    return saved_resume
