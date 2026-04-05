@@ -2,11 +2,15 @@ from pypdf import PdfReader
 from docx import Document
 from fastapi import File, UploadFile, HTTPException, status
 import io
+import re
 
 def extract_pdf_text(data: bytes) -> str:
     try:
         reader = PdfReader(io.BytesIO(data))
-        return "\n".join([page.extract_text() or "" for page in reader.pages])
+        text = "\n".join([page.extract_text() or "" for page in reader.pages])
+        text = re.sub(r"\n+", " ", text) # remove \n
+        text = re.sub(r"\s+", " ", text) # remove excess spaces
+        return text.strip()
     except Exception as e:
         raise ValueError(f"Failed to read PDF: {str(e)}")
     
