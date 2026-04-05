@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import Body, FastAPI, Query, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import File, UploadFile
@@ -9,6 +9,10 @@ from .playwright_scraper import PlaywrightJobScraper
 from .parser import to_dataframe
 from .normalizer import clean_basic
 from .extract_resume_text import extract_resume_text
+from .embeddings import embed_resume, embed_desc
+from .job_match import cosine_similarity
+import uuid
+from pydantic import BaseModel
 
 
 # --- FastAPI setup ---
@@ -78,16 +82,37 @@ async def upload_resume(file: UploadFile = File(...)):
     
     data = await file.read()
     resume_text = extract_resume_text(file, data)
+    resume_embedding = embed_resume(resume_text)
 
-
-    user_id = "default"
-    USER_RESUMES[user_id] = resume_text
-    print(USER_RESUMES)
+    user_id = str(uuid.uuid4())
+    USER_RESUMES[user_id] = {
+        "text":resume_text,
+        "embedding":resume_embedding
+    }
 
     return {
         "message": "Resume uploaded successfully.",
         "user_id": user_id,
+        "embedding": len(resume_embedding),
         "filename": file.filename,
         "preview": resume_text[:500] + "..." if len(resume_text) > 500 else resume_text
         }
     
+
+
+class MatchRequest(BaseModel):
+    user_id: str
+    desc: str
+
+@app.post("/api/match")
+async def match_jobs(req: MatchRequest
+    ) -> dict[str, float]:
+    desc_embedding = embed_desc(req.desc)
+    resume_embedding = USER_RESUMES[req.user_id]["embedding"]
+    score = cosine_similarity(desc_embedding, resume_embedding)
+    return {"match_score": float(score)}
+
+@app.get("/api/get_resume")
+async def resume_get(user_id: str) -> str:
+    saved_resume = USER_RESUMES[user_id]["text"]
+    return saved_resume

@@ -67,6 +67,9 @@ class PlaywrightJobScraper:
                     
                     next_page = i + 2
                     has_next = await page.query_selector(f"[aria-label='{next_page}']")
+                    
+                    has_next = None # NOT SCRAPING MULTIPLE PAGES FOR NOW
+                    
                     if i < pages - 1 and has_next:
                         start = (i + 1) * 10
                         print(f"Going to next page. Start: {start}")
